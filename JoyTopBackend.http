@@ -1,0 +1,6 @@
+@JoyTopBackend_HostAddress = http://localhost:5027
+
+GET {{JoyTopBackend_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

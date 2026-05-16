@@ -1,0 +1,16 @@
+[Bb]in/
+[Oo]bj/
+*.user
+*.userosscache
+*.sln.doccache
+*.suo
+*.user
+*.userosscache
+*.sln.doccache
+*.suo
+.vs/
+.vscode/
+appsettings.Development.json
+joy_top.db
+joy_top.db-shm
+joy_top.db-wal

@@ -38,7 +38,34 @@ public class AuthController : ControllerBase
         }
         return BadRequest(new { message = "Kod noto'g'ri" });
     }
+
+    [HttpPost("refresh")]
+    public IActionResult Refresh([FromBody] RefreshRequest request)
+    {
+        try
+        {
+            var principal = _tokenService.GetPrincipalFromExpiredToken(request.RefreshToken);
+            if (principal == null)
+            {
+                return BadRequest(new { message = "Noto'g'ri token" });
+            }
+
+            var phone = principal.Claims.FirstOrDefault(c => c.Type == "phone")?.Value;
+            if (string.IsNullOrEmpty(phone))
+            {
+                return BadRequest(new { message = "Token ichida telefon raqami topilmadi" });
+            }
+
+            var newToken = _tokenService.GenerateToken(phone);
+            return Ok(new { accessToken = newToken, refreshToken = newToken });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = $"Token yangilashda xato: {ex.Message}" });
+        }
+    }
 }
 
 public record OtpRequest(string PhoneNumber);
 public record VerifyRequest(string PhoneNumber, string Code);
+public record RefreshRequest(string RefreshToken);

@@ -12,4 +12,8 @@ public class Place : BaseEntity
     public double Rating { get; set; }
     public string PhoneNumber { get; set; } = string.Empty;
     public string WorkingHours { get; set; } = string.Empty;
+    public string? FuelType { get; set; }
+    public string? ShopType { get; set; }
+    public string? OshxonaType { get; set; }
+    public string? UstaxonaType { get; set; }
 }

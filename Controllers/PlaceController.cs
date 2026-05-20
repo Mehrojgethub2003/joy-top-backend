@@ -9,10 +9,35 @@ namespace JoyTopBackend.Controllers;
 public class PlaceController : ControllerBase
 {
     private readonly IPlaceRepository _repository;
+    private readonly IWebHostEnvironment _env;
 
-    public PlaceController(IPlaceRepository repository)
+    public PlaceController(IPlaceRepository repository, IWebHostEnvironment env)
     {
         _repository = repository;
+        _env = env;
+    }
+
+    [HttpPost("upload-image")]
+    public async Task<IActionResult> UploadImage(IFormFile file)
+    {
+        if (file == null || file.Length == 0)
+            return BadRequest(new { message = "Fayl tanlanmagan" });
+
+        var uploadsFolder = Path.Combine(_env.ContentRootPath, "wwwroot", "uploads", "places");
+        if (!Directory.Exists(uploadsFolder))
+            Directory.CreateDirectory(uploadsFolder);
+
+        var fileExtension = Path.GetExtension(file.FileName);
+        var uniqueFileName = Guid.NewGuid().ToString() + fileExtension;
+        var filePath = Path.Combine(uploadsFolder, uniqueFileName);
+
+        using (var fileStream = new FileStream(filePath, FileMode.Create))
+        {
+            await file.CopyToAsync(fileStream);
+        }
+
+        var imageUrl = $"/uploads/places/{uniqueFileName}";
+        return Ok(new { imageUrl });
     }
 
     [HttpGet]

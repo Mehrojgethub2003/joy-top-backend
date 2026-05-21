@@ -16,4 +16,16 @@ public class Place : BaseEntity
     public string? ShopType { get; set; }
     public string? OshxonaType { get; set; }
     public string? UstaxonaType { get; set; }
+
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public int ArzonVotesCount { get; set; }
+
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public int OrtachaVotesCount { get; set; }
+
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public int QimmatVotesCount { get; set; }
+
+    [System.ComponentModel.DataAnnotations.Schema.NotMapped]
+    public int WrongLocationVotesCount { get; set; }
 }

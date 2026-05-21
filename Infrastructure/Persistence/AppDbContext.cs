@@ -9,6 +9,8 @@ public class AppDbContext : DbContext
 
     public DbSet<Place> Places => Set<Place>();
     public DbSet<User> Users => Set<User>();
+    public DbSet<PlaceRating> PlaceRatings => Set<PlaceRating>();
+    public DbSet<PlaceVote> PlaceVotes => Set<PlaceVote>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

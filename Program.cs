@@ -87,6 +87,31 @@ using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     dbContext.Database.EnsureCreated();
+    
+    // Auto-create PlaceRatings table if it doesn't exist
+    dbContext.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS ""PlaceRatings"" (
+            ""Id"" INTEGER NOT NULL CONSTRAINT ""PK_PlaceRatings"" PRIMARY KEY AUTOINCREMENT,
+            ""PlaceId"" INTEGER NOT NULL,
+            ""UserPhone"" TEXT NOT NULL,
+            ""Score"" INTEGER NOT NULL,
+            ""CreatedAt"" TEXT NOT NULL,
+            ""UpdatedAt"" TEXT
+        );
+    ");
+
+    // Auto-create PlaceVotes table if it doesn't exist
+    dbContext.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS ""PlaceVotes"" (
+            ""Id"" INTEGER NOT NULL CONSTRAINT ""PK_PlaceVotes"" PRIMARY KEY AUTOINCREMENT,
+            ""PlaceId"" INTEGER NOT NULL,
+            ""DeviceId"" TEXT NOT NULL,
+            ""VoteType"" TEXT NOT NULL,
+            ""Value"" TEXT NOT NULL,
+            ""CreatedAt"" TEXT NOT NULL,
+            ""UpdatedAt"" TEXT
+        );
+    ");
 }
 
 if (app.Environment.IsDevelopment())

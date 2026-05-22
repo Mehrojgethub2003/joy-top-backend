@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using JoyTopBackend.Domain.Entities;
 using JoyTopBackend.Domain.Interfaces;
 
@@ -63,6 +64,12 @@ public class PlaceController : ControllerBase
     [HttpPost]
     public async Task<ActionResult<Place>> CreatePlace(Place place)
     {
+        if (place.Id == 0)
+        {
+            // Auto-generate a unique ID below 1,000,000 for local places to avoid collision with global OSM IDs
+            var maxId = _context.Places.Any() ? _context.Places.Max(p => p.Id) : 0;
+            place.Id = maxId >= 1000000 ? new Random().Next(1, 999999) : maxId + 1;
+        }
         var createdPlace = await _repository.AddAsync(place);
         return CreatedAtAction(nameof(GetPlace), new { id = createdPlace.Id }, createdPlace);
     }
@@ -82,10 +89,58 @@ public class PlaceController : ControllerBase
         return NoContent();
     }
 
+    private async Task<Place> EnsurePlaceExistsAsync(
+        long id,
+        string? name,
+        string? category,
+        string? address,
+        double? latitude,
+        double? longitude,
+        string? description,
+        List<string>? images)
+    {
+        var place = await _repository.GetByIdAsync(id);
+        if (place == null)
+        {
+            place = new Place
+            {
+                Id = id,
+                Name = name ?? "Tashqi Joy",
+                Category = category ?? "Hammasi",
+                Address = address ?? "Tashqi Manzil",
+                Latitude = latitude ?? 0,
+                Longitude = longitude ?? 0,
+                Description = description ?? "",
+                Images = images ?? new List<string>()
+            };
+            _context.Places.Add(place);
+            await _context.SaveChangesAsync();
+        }
+        else if (place.Name == "Tashqi Joy" && !string.IsNullOrEmpty(name))
+        {
+            place.Name = name;
+            place.Category = category ?? place.Category;
+            place.Address = address ?? place.Address;
+            place.Latitude = latitude ?? place.Latitude;
+            place.Longitude = longitude ?? place.Longitude;
+            place.Description = description ?? place.Description;
+            place.Images = images ?? place.Images;
+            await _repository.UpdateAsync(place);
+        }
+        return place;
+    }
+
     public class RateRequest
     {
         public string UserPhone { get; set; } = string.Empty;
         public int Score { get; set; }
+        public string? Name { get; set; }
+        public string? Category { get; set; }
+        public string? Address { get; set; }
+        public double? Latitude { get; set; }
+        public double? Longitude { get; set; }
+        public string? Description { get; set; }
+        public List<string>? Images { get; set; }
     }
 
     [HttpPost("{id}/rate")]
@@ -94,19 +149,16 @@ public class PlaceController : ControllerBase
         if (request.Score < 1 || request.Score > 5) return BadRequest("Baho 1 dan 5 gacha bo'lishi kerak.");
         if (string.IsNullOrEmpty(request.UserPhone)) return BadRequest("Foydalanuvchi raqami kiritilmagan.");
 
-        var place = await _repository.GetByIdAsync(id);
-        if (place == null)
-        {
-            place = new Place
-            {
-                Id = id,
-                Name = "Tashqi Joy",
-                Category = "Hammasi",
-                Address = "Tashqi Manzil"
-            };
-            _context.Places.Add(place);
-            await _context.SaveChangesAsync();
-        }
+        var place = await EnsurePlaceExistsAsync(
+            id,
+            request.Name,
+            request.Category,
+            request.Address,
+            request.Latitude,
+            request.Longitude,
+            request.Description,
+            request.Images
+        );
 
         // Check if user already rated
         var existingRating = _context.PlaceRatings.FirstOrDefault(r => r.PlaceId == id && r.UserPhone == request.UserPhone);
@@ -142,6 +194,13 @@ public class PlaceController : ControllerBase
         public string DeviceId { get; set; } = string.Empty;
         public string VoteType { get; set; } = string.Empty; // "price" | "service" | "location"
         public string Value { get; set; } = string.Empty; // "1", "2", "3", "wrong"
+        public string? Name { get; set; }
+        public string? Category { get; set; }
+        public string? Address { get; set; }
+        public double? Latitude { get; set; }
+        public double? Longitude { get; set; }
+        public string? Description { get; set; }
+        public List<string>? Images { get; set; }
     }
 
     [HttpPost("{id}/vote")]
@@ -151,23 +210,27 @@ public class PlaceController : ControllerBase
         if (string.IsNullOrEmpty(request.VoteType)) return BadRequest("VoteType is required");
         if (string.IsNullOrEmpty(request.Value)) return BadRequest("Value is required");
 
-        var place = await _repository.GetByIdAsync(id);
-        if (place == null)
-        {
-            place = new Place
-            {
-                Id = id,
-                Name = "Tashqi Joy",
-                Category = "Hammasi",
-                Address = "Tashqi Manzil"
-            };
-            _context.Places.Add(place);
-            await _context.SaveChangesAsync();
-        }
+        var place = await EnsurePlaceExistsAsync(
+            id,
+            request.Name,
+            request.Category,
+            request.Address,
+            request.Latitude,
+            request.Longitude,
+            request.Description,
+            request.Images
+        );
 
         var existingVote = _context.PlaceVotes.FirstOrDefault(v => v.PlaceId == id && v.DeviceId == request.DeviceId && v.VoteType == request.VoteType);
         if (existingVote != null)
         {
+            if (request.VoteType == "location")
+            {
+                // For wrong location votes, once submitted it is permanent and cannot be modified or toggled off
+                var existingPlace = await _repository.GetByIdAsync(id);
+                return Ok(existingPlace);
+            }
+
             if (existingVote.Value == request.Value)
             {
                 _context.PlaceVotes.Remove(existingVote);
@@ -194,5 +257,96 @@ public class PlaceController : ControllerBase
 
         var updatedPlace = await _repository.GetByIdAsync(id);
         return Ok(updatedPlace);
+    }
+
+    public class LikeRequest
+    {
+        public string DeviceId { get; set; } = string.Empty;
+        public string? Name { get; set; }
+        public string? Category { get; set; }
+        public string? Address { get; set; }
+        public double? Latitude { get; set; }
+        public double? Longitude { get; set; }
+        public string? Description { get; set; }
+        public List<string>? Images { get; set; }
+    }
+
+    [HttpPost("{id}/like")]
+    [Authorize]
+    public async Task<IActionResult> ToggleLike(long id, [FromBody] LikeRequest request)
+    {
+        var phone = User.Claims.FirstOrDefault(c => c.Type == "phone")?.Value;
+        if (string.IsNullOrEmpty(phone)) return Unauthorized();
+
+        var place = await EnsurePlaceExistsAsync(
+            id,
+            request.Name,
+            request.Category,
+            request.Address,
+            request.Latitude,
+            request.Longitude,
+            request.Description,
+            request.Images
+        );
+
+        var existingLike = _context.PlaceLikes.FirstOrDefault(l => l.PlaceId == id && l.DeviceId == phone);
+        bool isLiked;
+        if (existingLike != null)
+        {
+            _context.PlaceLikes.Remove(existingLike);
+            isLiked = false;
+        }
+        else
+        {
+            _context.PlaceLikes.Add(new PlaceLike
+            {
+                PlaceId = id,
+                DeviceId = phone,
+                CreatedAt = DateTime.UtcNow
+            });
+            isLiked = true;
+        }
+
+        await _context.SaveChangesAsync();
+        return Ok(new { success = true, isLiked = isLiked });
+    }
+
+    [HttpGet("liked")]
+    public async Task<IActionResult> GetLikedPlaces()
+    {
+        var phone = User.Claims.FirstOrDefault(c => c.Type == "phone")?.Value;
+        if (string.IsNullOrEmpty(phone))
+        {
+            return Ok(new List<Place>());
+        }
+
+        var likedPlaceIds = _context.PlaceLikes
+            .Where(l => l.DeviceId == phone)
+            .Select(l => l.PlaceId)
+            .ToList();
+
+        var places = new List<Place>();
+        foreach (var id in likedPlaceIds)
+        {
+            var p = await _repository.GetByIdAsync(id);
+            if (p != null)
+            {
+                places.Add(p);
+            }
+        }
+
+        return Ok(places);
+    }
+
+    [HttpGet("{id}/isLiked")]
+    public IActionResult CheckIfLiked(long id)
+    {
+        var phone = User.Claims.FirstOrDefault(c => c.Type == "phone")?.Value;
+        if (string.IsNullOrEmpty(phone))
+        {
+            return Ok(new { isLiked = false });
+        }
+        var exists = _context.PlaceLikes.Any(l => l.PlaceId == id && l.DeviceId == phone);
+        return Ok(new { isLiked = exists });
     }
 }

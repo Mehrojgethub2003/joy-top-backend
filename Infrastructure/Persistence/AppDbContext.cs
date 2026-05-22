@@ -11,11 +11,16 @@ public class AppDbContext : DbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<PlaceRating> PlaceRatings => Set<PlaceRating>();
     public DbSet<PlaceVote> PlaceVotes => Set<PlaceVote>();
+    public DbSet<PlaceLike> PlaceLikes => Set<PlaceLike>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
         
+        modelBuilder.Entity<Place>()
+            .Property(p => p.Id)
+            .ValueGeneratedNever();
+
         // SQLite doesn't support List<string> natively, so we use a value converter
         modelBuilder.Entity<Place>()
             .Property(p => p.Images)

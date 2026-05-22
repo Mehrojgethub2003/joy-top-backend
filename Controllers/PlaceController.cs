@@ -67,9 +67,26 @@ public class PlaceController : ControllerBase
         if (place.Id == 0)
         {
             // Auto-generate a unique ID below 1,000,000 for local places to avoid collision with global OSM IDs
-            var maxId = _context.Places.Any() ? _context.Places.Max(p => p.Id) : 0;
-            place.Id = maxId >= 1000000 ? new Random().Next(1, 999999) : maxId + 1;
+            long newId = 1;
+            var localIds = _context.Places
+                .Where(p => p.Id < 1000000)
+                .Select(p => p.Id)
+                .ToList()
+                .ToHashSet();
+            while (localIds.Contains(newId))
+            {
+                newId++;
+            }
+            place.Id = newId;
         }
+
+        // If the user is authenticated, we automatically assign their verified phone number from the token!
+        var phone = User.Claims.FirstOrDefault(c => c.Type == "phone")?.Value;
+        if (!string.IsNullOrEmpty(phone))
+        {
+            place.PhoneNumber = phone;
+        }
+
         var createdPlace = await _repository.AddAsync(place);
         return CreatedAtAction(nameof(GetPlace), new { id = createdPlace.Id }, createdPlace);
     }
@@ -312,6 +329,7 @@ public class PlaceController : ControllerBase
     }
 
     [HttpGet("liked")]
+    [Authorize]
     public async Task<IActionResult> GetLikedPlaces()
     {
         var phone = User.Claims.FirstOrDefault(c => c.Type == "phone")?.Value;
@@ -339,6 +357,7 @@ public class PlaceController : ControllerBase
     }
 
     [HttpGet("{id}/isLiked")]
+    [Authorize]
     public IActionResult CheckIfLiked(long id)
     {
         var phone = User.Claims.FirstOrDefault(c => c.Type == "phone")?.Value;

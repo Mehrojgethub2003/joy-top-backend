@@ -57,7 +57,24 @@ public class PlaceController : ControllerBase
     public async Task<ActionResult<Place>> GetPlace(long id)
     {
         var place = await _repository.GetByIdAsync(id);
-        if (place == null) return NotFound();
+        if (place == null)
+        {
+            // Agar OSM/tashqi joy bo'lsa va hali baholanmagan/ovoz berilmagan bo'lsa, 404 o'rniga default bo'sh obyekt qaytaramiz
+            if (id >= 1000000)
+            {
+                return Ok(new Place
+                {
+                    Id = id,
+                    Name = "Tashqi Joy",
+                    Category = "Hammasi",
+                    Address = "",
+                    Description = "",
+                    Images = new List<string>(),
+                    Rating = 0
+                });
+            }
+            return NotFound();
+        }
         return Ok(place);
     }
 

@@ -12,12 +12,18 @@ public class PlaceController : ControllerBase
     private readonly IPlaceRepository _repository;
     private readonly IWebHostEnvironment _env;
     private readonly JoyTopBackend.Infrastructure.Persistence.AppDbContext _context;
+    private readonly JoyTopBackend.Infrastructure.ExternalServices.OsmSyncService _osmSyncService;
 
-    public PlaceController(IPlaceRepository repository, IWebHostEnvironment env, JoyTopBackend.Infrastructure.Persistence.AppDbContext context)
+    public PlaceController(
+        IPlaceRepository repository, 
+        IWebHostEnvironment env, 
+        JoyTopBackend.Infrastructure.Persistence.AppDbContext context,
+        JoyTopBackend.Infrastructure.ExternalServices.OsmSyncService osmSyncService)
     {
         _repository = repository;
         _env = env;
         _context = context;
+        _osmSyncService = osmSyncService;
     }
 
     [HttpPost("upload-image")]
@@ -384,5 +390,23 @@ public class PlaceController : ControllerBase
         }
         var exists = _context.PlaceLikes.Any(l => l.PlaceId == id && l.DeviceId == phone);
         return Ok(new { isLiked = exists });
+    }
+
+    [HttpPost("{id}/publish-osm")]
+    public async Task<IActionResult> PublishToOsm(long id)
+    {
+        var place = await _repository.GetByIdAsync(id);
+        if (place == null)
+        {
+            return NotFound("Joy topilmadi.");
+        }
+
+        var result = await _osmSyncService.PublishPlaceAsync(place);
+        if (!result.success)
+        {
+            return StatusCode(500, new { message = "OpenStreetMap-ga joylashda xatolik yuz berdi.", error = result.error });
+        }
+
+        return Ok(new { success = true, osmNodeId = result.osmNodeId, message = "OpenStreetMap-ga muvaffaqiyatli joylandi!" });
     }
 }

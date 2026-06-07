@@ -74,6 +74,8 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection") ?? "Data Source=joy_top.db"));
 
 // External & Auth Services
+builder.Services.AddHttpClient();
+builder.Services.AddScoped<JoyTopBackend.Infrastructure.ExternalServices.OsmSyncService>();
 builder.Services.AddSingleton<ITelegramService, TelegramService>();
 builder.Services.AddSingleton<TokenService>();
 builder.Services.AddScoped<AuthService>();

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
 using JoyTopBackend.Domain.Entities;
 using JoyTopBackend.Domain.Interfaces;
 
@@ -408,5 +409,68 @@ public class PlaceController : ControllerBase
         }
 
         return Ok(new { success = true, osmNodeId = result.osmNodeId, message = "OpenStreetMap-ga muvaffaqiyatli joylandi!" });
+    }
+
+    public class LocationCommentRequest
+    {
+        public string DeviceId { get; set; } = string.Empty;
+        public string CommentText { get; set; } = string.Empty;
+        public string? Name { get; set; }
+        public string? Category { get; set; }
+        public string? Address { get; set; }
+        public double? Latitude { get; set; }
+        public double? Longitude { get; set; }
+        public string? Description { get; set; }
+        public List<string>? Images { get; set; }
+    }
+
+    [HttpPost("{id}/location-comments")]
+    [Authorize]
+    public async Task<IActionResult> AddLocationComment(long id, [FromBody] LocationCommentRequest request)
+    {
+        if (string.IsNullOrEmpty(request.CommentText)) return BadRequest("Izoh matni bo'sh bo'lmasligi kerak");
+
+        var phone = User.Claims.FirstOrDefault(c => c.Type == "phone")?.Value;
+        if (string.IsNullOrEmpty(phone)) return Unauthorized();
+
+        var user = _context.Users.FirstOrDefault(u => u.PhoneNumber == phone);
+        var userName = user != null ? $"{user.FirstName} {user.LastName}".Trim() : "Foydalanuvchi";
+        if (string.IsNullOrEmpty(userName)) userName = "Foydalanuvchi";
+
+        var place = await EnsurePlaceExistsAsync(
+            id,
+            request.Name,
+            request.Category,
+            request.Address,
+            request.Latitude,
+            request.Longitude,
+            request.Description,
+            request.Images
+        );
+
+        var comment = new PlaceLocationComment
+        {
+            PlaceId = id,
+            DeviceId = phone,
+            UserName = userName,
+            CommentText = request.CommentText,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        _context.PlaceLocationComments.Add(comment);
+        await _context.SaveChangesAsync();
+
+        return Ok(new { success = true, comment });
+    }
+
+    [HttpGet("{id}/location-comments")]
+    public async Task<IActionResult> GetLocationComments(long id)
+    {
+        var comments = await _context.PlaceLocationComments
+            .Where(c => c.PlaceId == id)
+            .OrderByDescending(c => c.CreatedAt)
+            .ToListAsync();
+
+        return Ok(comments);
     }
 }

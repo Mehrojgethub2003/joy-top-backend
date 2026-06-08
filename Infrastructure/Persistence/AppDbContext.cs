@@ -12,6 +12,7 @@ public class AppDbContext : DbContext
     public DbSet<PlaceRating> PlaceRatings => Set<PlaceRating>();
     public DbSet<PlaceVote> PlaceVotes => Set<PlaceVote>();
     public DbSet<PlaceLike> PlaceLikes => Set<PlaceLike>();
+    public DbSet<PlaceLocationComment> PlaceLocationComments => Set<PlaceLocationComment>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

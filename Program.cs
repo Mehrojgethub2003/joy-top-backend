@@ -125,6 +125,20 @@ using (var scope = app.Services.CreateScope())
             ""UpdatedAt"" TEXT
         );
     ");
+
+    // Auto-create PlaceLocationComments table if it doesn't exist
+    dbContext.Database.ExecuteSqlRaw("DROP TABLE IF EXISTS \"PlaceLocationComments\";");
+    dbContext.Database.ExecuteSqlRaw(@"
+        CREATE TABLE IF NOT EXISTS ""PlaceLocationComments"" (
+            ""Id"" INTEGER NOT NULL CONSTRAINT ""PK_PlaceLocationComments"" PRIMARY KEY AUTOINCREMENT,
+            ""PlaceId"" INTEGER NOT NULL,
+            ""DeviceId"" TEXT NOT NULL,
+            ""UserName"" TEXT NOT NULL,
+            ""CommentText"" TEXT NOT NULL,
+            ""CreatedAt"" TEXT NOT NULL,
+            ""UpdatedAt"" TEXT
+        );
+    ");
 }
 
 if (app.Environment.IsDevelopment())
